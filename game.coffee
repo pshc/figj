@@ -14,13 +14,18 @@ spriteCount = 1
 noclip = false
 msgbox = document.getElementById('info')
 
+SPACE = 1
+WATER = 2
+GROUND = 3
+
+getPos = -> [Math.round(playerX/tileW), Math.round(playerY/tileH)]
+
 window.onkeydown = (event) ->
     key = event.which
     if key >= 48 and key < 58
         # modify tile
         col = key - 48
-        x = Math.round(playerX/tileW)
-        y = Math.round(playerY/tileH)
+        [x, y] = getPos()
         pokeMap(x, y, col)
         loadMap()
     else switch key
@@ -62,19 +67,26 @@ update_state = ->
     if keys.right then targetX += 1
     if keys.up then targetY += 1
     if keys.down then targetY -= 1
-    if noclip or hit_test targetX, targetY
+    if noclip
         playerX = targetX
         playerY = targetY
     else
-        if hit_test targetX, playerY then playerX = targetX
-        if hit_test playerX, targetY then playerY = targetY
+        if targetY > playerY
+            [x, y] = getPos()
+            if WATER != peekMap x, y then targetY = playerY
+        if noclip or hit_test targetX, targetY
+            playerX = targetX
+            playerY = targetY
+        else
+            if hit_test targetX, playerY then playerX = targetX
+            if hit_test playerX, targetY then playerY = targetY
 
 hit_test = (x, y) ->
     x1 = Math.floor((x+2) / tileW)
     x2 = Math.floor((x+14) / tileW)
     y1 = Math.floor((y+2) / tileH)
     y2 = Math.floor((y+14) / tileH)
-    ok = (col) -> col != 3
+    ok = (col) -> col != GROUND
     (ok peekMap x1, y1) and (ok peekMap x2, y1) and (
         ok peekMap x1, y2) and (ok peekMap x2, y2)
 
