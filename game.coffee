@@ -2,17 +2,20 @@ log = (msgs...) -> console.log.apply console, msgs
 
 screenW = screenH = 0
 levelW = levelH = 0
-tileW = tileH = 32
+tileW = tileH = 16
 prog = null
-tileBuffer = mapBuffer = null
+vertBuffer = coordBuffer = tileIndexBuffer = mapBuffer = null
+tileTex = null
 
 draw = ->
     gl.clearColor 0, 0, 0, 1
     gl.clear gl.COLOR_BUFFER_BIT
 
-    for y in [0..levelH]
-        gl.uniform1f prog.y, y
-        gl.drawArrays gl.TRIANGLE_STRIP, 0, levelW * 2 + 2
+    gl.activeTexture gl.TEXTURE0
+    gl.bindTexture gl.TEXTURE_2D, tileTex
+    gl.uniform1i prog.sampler, 0
+
+    gl.drawElements gl.TRIANGLES, levelW * levelH * 6, gl.UNSIGNED_SHORT, 0
 
 getShader = (id) ->
     script = document.getElementById id
@@ -37,7 +40,7 @@ getShader = (id) ->
         throw "Shader error."
     shader
 
-setup = ->
+setup = (callback) ->
     canvas = document.getElementsByTagName('canvas')[0]
     try
         window.gl = canvas.getContext 'experimental-webgl'
@@ -62,16 +65,24 @@ setup = ->
         throw "Couldn't link."
 
     gl.useProgram prog
+
+    # attributes
     prog.pos = gl.getAttribLocation prog, 'pos'
     if prog.pos < 0
         throw "Couldn't get attrib"
     gl.enableVertexAttribArray prog.pos
+
+    prog.coord = gl.getAttribLocation prog, 'coord'
+    if prog.pos < 0
+        throw "Couldn't get attrib"
+    gl.enableVertexAttribArray prog.coord
 
     prog.col = gl.getAttribLocation prog, 'col'
     if prog.col < 0
         throw "Couldn't get attrib"
     gl.enableVertexAttribArray prog.col
 
+    # uniforms
     prog.proj = gl.getUniformLocation prog, 'proj'
     ortho = new Float32Array [
         2/screenW, 0, 0, 0,
@@ -81,30 +92,65 @@ setup = ->
     ]
     gl.uniformMatrix4fv prog.proj, false, ortho
 
-    prog.y = gl.getUniformLocation prog, 'y'
+    prog.sampler = gl.getUniformLocation prog, 'sampler'
 
-    # gen row of tiles
-    tris = [0, 0, 0, tileH]
-    for i in [1..levelW]
-        tris.push(
-            i*tileW, 0,
-            i*tileW, tileH,
-        )
+    verts = []
+    coords = []
+    indices = []
+    map = []
+    for j in [0...levelH]
+        for i in [0...levelW]
+            verts.push(
+                i, j,
+                i, j+1,
+                i+1, j,
+                i+1, j+1,
+            )
+            coords.push(
+                0, 0.25,
+                0, 0,
+                0.25, 0.25,
+                0.25, 0,
+            )
+            x = (j * levelW + i) * 4
+            indices.push(
+                x, x+1, x+2,
+                x+1, x+2, x+3,
+            )
+            col = (j * levelW + i) % 5
+            map.push(col, col, col, col)
 
-    tileBuffer = gl.createBuffer()
-    gl.bindBuffer gl.ARRAY_BUFFER, tileBuffer
-    gl.bufferData gl.ARRAY_BUFFER, new Float32Array(tris), gl.STATIC_DRAW
+    vertBuffer = gl.createBuffer()
+    gl.bindBuffer gl.ARRAY_BUFFER, vertBuffer
+    gl.bufferData gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW
     gl.vertexAttribPointer prog.pos, 2, gl.FLOAT, false, 0, 0
 
-    map = []
-    for i in [0..levelW]
-        map.push(i/levelW, i/levelW)
+    coordBuffer = gl.createBuffer()
+    gl.bindBuffer gl.ARRAY_BUFFER, coordBuffer
+    gl.bufferData gl.ARRAY_BUFFER, new Float32Array(coords), gl.STATIC_DRAW
+    gl.vertexAttribPointer prog.coord, 2, gl.FLOAT, false, 0, 0
+
+    tileIndexBuffer = gl.createBuffer()
+    gl.bindBuffer gl.ELEMENT_ARRAY_BUFFER, tileIndexBuffer
+    gl.bufferData gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW
+
     mapBuffer = gl.createBuffer()
     gl.bindBuffer gl.ARRAY_BUFFER, mapBuffer
     gl.bufferData gl.ARRAY_BUFFER, new Float32Array(map), gl.DYNAMIC_DRAW
     gl.vertexAttribPointer prog.col, 1, gl.FLOAT, false, 0, 0
 
-    log 'OK!'
-    draw()
+    tileImage = new Image()
+    tileImage.onload = ->
+        tileTex = gl.createTexture()
+        gl.bindTexture gl.TEXTURE_2D, tileTex
+        #gl.pixelStorei gl.UNPACK_FLIP_Y_WEBGL, true
+        gl.texImage2D gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this
+        gl.texParameteri gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST
+        gl.texParameteri gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST
 
-setup()
+        log 'OK!'
+        setTimeout(callback, 0)
+    tileImage.src = 'tiles.png'
+
+
+setup(draw)

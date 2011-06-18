@@ -1,25 +1,33 @@
 <!doctype html>
 <title>Game</title>
-<canvas width=640 height=360></canvas>
+<canvas width=640 height=352></canvas>
 <script id="frag" type="x-shader/x-fragment">
-  varying lowp vec2 vCol;
+  precision highp float;
+
+  uniform sampler2D sampler;
+
+  varying lowp vec2 texCoord;
 
   void main(void) {
-    gl_FragColor = vec4(1, vCol, 1);
+    gl_FragColor = texture2D(sampler, texCoord);
   }
 </script>
 <script id="vert" type="x-shader/x-vertex">
   attribute vec2 pos;
+  attribute vec2 coord;
   attribute float col;
 
   uniform mat4 proj;
-  uniform float y;
 
-  varying lowp vec2 vCol;
+  varying lowp vec2 texCoord;
+
+  const float pix = 16.0;
 
   void main(void) {
-    gl_Position = proj * vec4(pos.x, pos.y + y*32.0, 0, 1.0);
-    vCol = vec2(col, y/11.0);
+    gl_Position = proj * vec4(pos * pix, 0.0, 1.0);
+    float s = mod(col, 4.0) / 4.0;
+    float t = floor(col / 4.0) / 4.0;
+    texCoord = vec2(coord.s + s, coord.t + t);
   }
 </script>
 <script src="game.js"></script>
