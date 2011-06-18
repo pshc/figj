@@ -29,6 +29,9 @@ window.onkeydown = (event) ->
         when 27
             clearInterval timer
             gl.clear gl.COLOR_BUFFER_BIT
+        when 88
+            window.localStorage.level = JSON.stringify exportMap()
+            log 'exported.'
         else
             log event.which, 'up'
             return
@@ -183,7 +186,7 @@ setup = (callback) ->
                 x, x+1, x+2,
                 x+1, x+2, x+3,
             )
-            col = (j * levelW + i) % 4 + 1
+            col = if j < levelH/2 then 3 else 1
             map.push(col, col, col, col)
 
     vertBuffer = gl.createBuffer()
@@ -202,6 +205,8 @@ setup = (callback) ->
 
     mapBuffer = gl.createBuffer()
     pokeMap(0, 0, 0)
+    if window.localStorage.level
+        importMap JSON.parse window.localStorage.level
     loadMap()
 
     tileImage = new Image()
@@ -226,6 +231,14 @@ loadMap = ->
     gl.bindBuffer gl.ARRAY_BUFFER, mapBuffer
     gl.bufferData gl.ARRAY_BUFFER, new Float32Array(map), gl.DYNAMIC_DRAW
     gl.vertexAttribPointer prog.col, 1, gl.FLOAT, false, 0, 0
+
+importMap = (data) ->
+    for i in [0...levelW*levelH]
+        x = (spriteCount + i) * 4
+        map[x] = map[x+1] = map[x+2] = map[x+3] = data[i]
+
+exportMap = ->
+    map[i] for i in [spriteCount*4...(spriteCount+levelW*levelH)*4] by 4
 
 setup () ->
     timer = setInterval draw, 1000/60
