@@ -18,13 +18,14 @@
   attribute float col;
 
   uniform mat4 proj;
+  uniform vec2 offset;
 
   varying lowp vec2 texCoord;
 
   const float pix = 16.0;
 
   void main(void) {
-    gl_Position = proj * vec4(pos * pix, 0.0, 1.0);
+    gl_Position = proj * vec4(pos * pix + offset, 0.0, 1.0);
     float s = mod(col, 4.0) / 4.0;
     float t = floor(col / 4.0) / 4.0;
     texCoord = vec2(coord.s + s, coord.t + t);

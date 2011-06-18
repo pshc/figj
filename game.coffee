@@ -3,12 +3,58 @@ log = (msgs...) -> console.log.apply console, msgs
 screenW = screenH = 0
 levelW = levelH = 0
 tileW = tileH = 16
+playerX = playerY = 20
 prog = null
 vertBuffer = coordBuffer = tileIndexBuffer = mapBuffer = null
 tileTex = null
 map = []
+keys = up:0, down:0, left:0, right:0
+canvas = timer = null
+
+window.onkeydown = (event) ->
+    key = event.which
+    if key >= 48 and key < 58
+        # modify tile
+        col = key - 48
+        x = Math.round(playerX/tileW)
+        y = Math.round(playerY/tileH)
+        pokeMap(x, y, col)
+        loadMap()
+    else switch key
+        when 37 then keys.left = 1
+        when 38 then keys.up = 1
+        when 39 then keys.right = 1
+        when 40 then keys.down = 1
+        when 27
+            clearInterval timer
+            gl.clear gl.COLOR_BUFFER_BIT
+        else
+            log event.which, 'up'
+            return
+    event.preventDefault()
+
+window.onkeyup = (event) ->
+    key = event.which
+    if key >= 48 and key < 58
+        # pass
+    else switch key
+        when 37 then keys.left = 0
+        when 38 then keys.up = 0
+        when 39 then keys.right = 0
+        when 40 then keys.down = 0
+        else
+            return
+    event.preventDefault()
+
+update_state = ->
+    if keys.left then playerX -= 1
+    if keys.right then playerX += 1
+    if keys.up then playerY += 1
+    if keys.down then playerY -= 1
 
 draw = ->
+    update_state()
+
     gl.clearColor 0, 0, 0, 1
     gl.clear gl.COLOR_BUFFER_BIT
 
@@ -16,7 +62,13 @@ draw = ->
     gl.bindTexture gl.TEXTURE_2D, tileTex
     gl.uniform1i prog.sampler, 0
 
+    # map
+    gl.uniform2f prog.offset, 0, 0
     gl.drawElements gl.TRIANGLES, levelW * levelH * 6, gl.UNSIGNED_SHORT, 0
+
+    # sprite
+    gl.uniform2f prog.offset, playerX, playerY
+    gl.drawElements gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0
 
 getShader = (id) ->
     script = document.getElementById id
@@ -94,6 +146,7 @@ setup = (callback) ->
     gl.uniformMatrix4fv prog.proj, false, ortho
 
     prog.sampler = gl.getUniformLocation prog, 'sampler'
+    prog.offset = gl.getUniformLocation prog, 'offset'
 
     verts = []
     coords = []
@@ -135,7 +188,6 @@ setup = (callback) ->
     gl.bufferData gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW
 
     mapBuffer = gl.createBuffer()
-    pokeMap(1, 1, 2)
     loadMap()
 
     tileImage = new Image()
@@ -161,4 +213,5 @@ loadMap = ->
     gl.bufferData gl.ARRAY_BUFFER, new Float32Array(map), gl.DYNAMIC_DRAW
     gl.vertexAttribPointer prog.col, 1, gl.FLOAT, false, 0, 0
 
-setup(draw)
+setup () ->
+    timer = setInterval draw, 1000/60
