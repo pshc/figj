@@ -1,0 +1,16 @@
+<!doctype html>
+<title>Game</title>
+<canvas width=640 height=360></canvas>
+<script id="frag" type="x-shader/x-fragment">
+  void main(void) {
+    gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
+  }
+</script>
+<script id="vert" type="x-shader/x-vertex">
+  attribute vec2 pos;
+  uniform mat4 proj;
+  void main(void) {
+    gl_Position = proj * vec4(pos, 0.0, 1.0);
+  }
+</script>
+<script src="game.js"></script>
