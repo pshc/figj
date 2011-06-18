@@ -11,13 +11,15 @@ map = []
 keys = up:0, down:0, left:0, right:0
 canvas = timer = null
 spriteCount = 1
+noclip = false
+msgbox = document.getElementById('info')
 
 window.onkeydown = (event) ->
     key = event.which
     if key >= 48 and key < 58
         # modify tile
         col = key - 48
-        x = Math.round(playerX/tileW + 1.0)
+        x = Math.round(playerX/tileW)
         y = Math.round(playerY/tileH)
         pokeMap(x, y, col)
         loadMap()
@@ -26,6 +28,9 @@ window.onkeydown = (event) ->
         when 38 then keys.up = 1
         when 39 then keys.right = 1
         when 40 then keys.down = 1
+        when 78
+            noclip = not noclip
+            msgbox.textContent = if noclip then 'noclip' else 'clip'
         when 27
             clearInterval timer
             gl.clear gl.COLOR_BUFFER_BIT
@@ -51,10 +56,27 @@ window.onkeyup = (event) ->
     event.preventDefault()
 
 update_state = ->
-    if keys.left then playerX -= 1
-    if keys.right then playerX += 1
-    if keys.up then playerY += 1
-    if keys.down then playerY -= 1
+    targetX = playerX
+    targetY = playerY
+    if keys.left then targetX -= 1
+    if keys.right then targetX += 1
+    if keys.up then targetY += 1
+    if keys.down then targetY -= 1
+    if noclip or hit_test targetX, targetY
+        playerX = targetX
+        playerY = targetY
+    else
+        if hit_test targetX, playerY then playerX = targetX
+        if hit_test playerX, targetY then playerY = targetY
+
+hit_test = (x, y) ->
+    x1 = Math.floor((x+2) / tileW)
+    x2 = Math.floor((x+14) / tileW)
+    y1 = Math.floor((y+2) / tileH)
+    y2 = Math.floor((y+14) / tileH)
+    ok = (col) -> col != 3
+    (ok peekMap x1, y1) and (ok peekMap x2, y1) and (
+        ok peekMap x1, y2) and (ok peekMap x2, y2)
 
 draw = ->
     update_state()
@@ -222,10 +244,10 @@ setup = (callback) ->
     tileImage.src = 'tiles.png'
 
 pokeMap = (x, y, col) ->
-    i = (y * levelW + x) * 4
+    i = (spriteCount + y * levelW + x) * 4
     map[j] = col for j in [i...i+4]
 
-peekMap = (x, y) -> map[(y * levelW + x) * 4]
+peekMap = (x, y) -> map[(spriteCount + y * levelW + x) * 4]
 
 loadMap = ->
     gl.bindBuffer gl.ARRAY_BUFFER, mapBuffer
