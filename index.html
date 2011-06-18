@@ -2,10 +2,10 @@
 <title>Game</title>
 <canvas width=640 height=360></canvas>
 <script id="frag" type="x-shader/x-fragment">
-  varying lowp float vCol;
+  varying lowp vec2 vCol;
 
   void main(void) {
-    gl_FragColor = vec4(1, vCol, 0, 1);
+    gl_FragColor = vec4(1, vCol, 1);
   }
 </script>
 <script id="vert" type="x-shader/x-vertex">
@@ -13,12 +13,13 @@
   attribute float col;
 
   uniform mat4 proj;
+  uniform float y;
 
-  varying lowp float vCol;
+  varying lowp vec2 vCol;
 
   void main(void) {
-    gl_Position = proj * vec4(pos, 0, 1.0);
-    vCol = col;
+    gl_Position = proj * vec4(pos.x, pos.y + y*32.0, 0, 1.0);
+    vCol = vec2(col, y/11.0);
   }
 </script>
 <script src="game.js"></script>

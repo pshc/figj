@@ -10,7 +10,9 @@ draw = ->
     gl.clearColor 0, 0, 0, 1
     gl.clear gl.COLOR_BUFFER_BIT
 
-    gl.drawArrays gl.TRIANGLE_STRIP, 0, levelW * 2 + 2
+    for y in [0..levelH]
+        gl.uniform1f prog.y, y
+        gl.drawArrays gl.TRIANGLE_STRIP, 0, levelW * 2 + 2
 
 getShader = (id) ->
     script = document.getElementById id
@@ -78,6 +80,8 @@ setup = ->
         -1, -1, 0, 1
     ]
     gl.uniformMatrix4fv prog.proj, false, ortho
+
+    prog.y = gl.getUniformLocation prog, 'y'
 
     # gen row of tiles
     tris = [0, 0, 0, tileH]
