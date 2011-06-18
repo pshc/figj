@@ -119,6 +119,9 @@ setup = (callback) ->
 
     gl.useProgram prog
 
+    gl.enable gl.BLEND
+    gl.blendFunc gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA
+
     # attributes
     prog.pos = gl.getAttribLocation prog, 'pos'
     if prog.pos < 0
@@ -170,7 +173,7 @@ setup = (callback) ->
                 x, x+1, x+2,
                 x+1, x+2, x+3,
             )
-            col = (j * levelW + i) % 5
+            col = (j * levelW + i) % 4 + 1
             map.push(col, col, col, col)
 
     vertBuffer = gl.createBuffer()
@@ -188,6 +191,7 @@ setup = (callback) ->
     gl.bufferData gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW
 
     mapBuffer = gl.createBuffer()
+    pokeMap(0, 0, 0)
     loadMap()
 
     tileImage = new Image()
