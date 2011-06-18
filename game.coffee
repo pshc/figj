@@ -6,6 +6,7 @@ tileW = tileH = 16
 prog = null
 vertBuffer = coordBuffer = tileIndexBuffer = mapBuffer = null
 tileTex = null
+map = []
 
 draw = ->
     gl.clearColor 0, 0, 0, 1
@@ -97,7 +98,6 @@ setup = (callback) ->
     verts = []
     coords = []
     indices = []
-    map = []
     for j in [0...levelH]
         for i in [0...levelW]
             verts.push(
@@ -135,15 +135,13 @@ setup = (callback) ->
     gl.bufferData gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW
 
     mapBuffer = gl.createBuffer()
-    gl.bindBuffer gl.ARRAY_BUFFER, mapBuffer
-    gl.bufferData gl.ARRAY_BUFFER, new Float32Array(map), gl.DYNAMIC_DRAW
-    gl.vertexAttribPointer prog.col, 1, gl.FLOAT, false, 0, 0
+    pokeMap(1, 1, 2)
+    loadMap()
 
     tileImage = new Image()
     tileImage.onload = ->
         tileTex = gl.createTexture()
         gl.bindTexture gl.TEXTURE_2D, tileTex
-        #gl.pixelStorei gl.UNPACK_FLIP_Y_WEBGL, true
         gl.texImage2D gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this
         gl.texParameteri gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST
         gl.texParameteri gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST
@@ -152,5 +150,15 @@ setup = (callback) ->
         setTimeout(callback, 0)
     tileImage.src = 'tiles.png'
 
+pokeMap = (x, y, col) ->
+    i = (y * levelW + x) * 4
+    map[j] = col for j in [i...i+4]
+
+peekMap = (x, y) -> map[(y * levelW + x) * 4]
+
+loadMap = ->
+    gl.bindBuffer gl.ARRAY_BUFFER, mapBuffer
+    gl.bufferData gl.ARRAY_BUFFER, new Float32Array(map), gl.DYNAMIC_DRAW
+    gl.vertexAttribPointer prog.col, 1, gl.FLOAT, false, 0, 0
 
 setup(draw)
