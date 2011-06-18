@@ -10,6 +10,7 @@ tileTex = null
 map = []
 keys = up:0, down:0, left:0, right:0
 canvas = timer = null
+spriteCount = 1
 
 window.onkeydown = (event) ->
     key = event.which
@@ -64,7 +65,7 @@ draw = ->
 
     # map
     gl.uniform2f prog.offset, 0, 0
-    gl.drawElements gl.TRIANGLES, levelW * levelH * 6, gl.UNSIGNED_SHORT, 0
+    gl.drawElements gl.TRIANGLES, (levelW * levelH + spriteCount) * 6, gl.UNSIGNED_SHORT, 0
 
     # sprite
     gl.uniform2f prog.offset, playerX, playerY
@@ -154,6 +155,14 @@ setup = (callback) ->
     verts = []
     coords = []
     indices = []
+    curIndex = 0
+    for i in [0...spriteCount]
+        verts.push 0, 0, 0, 1, 1, 0, 1, 1
+        coords.push 0, 0.25, 0, 0, 0.25, 0.25, 0.25, 0
+        x = curIndex
+        curIndex += 4
+        indices.push x, x+1, x+2, x+1, x+2, x+3
+        map.push 0, 0, 0, 0
     for j in [0...levelH]
         for i in [0...levelW]
             verts.push(
@@ -168,7 +177,8 @@ setup = (callback) ->
                 0.25, 0.25,
                 0.25, 0,
             )
-            x = (j * levelW + i) * 4
+            x = curIndex
+            curIndex += 4
             indices.push(
                 x, x+1, x+2,
                 x+1, x+2, x+3,
