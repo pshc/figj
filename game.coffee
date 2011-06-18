@@ -17,7 +17,7 @@ window.onkeydown = (event) ->
     if key >= 48 and key < 58
         # modify tile
         col = key - 48
-        x = Math.round(playerX/tileW)
+        x = Math.round(playerX/tileW + 1.0)
         y = Math.round(playerY/tileH)
         pokeMap(x, y, col)
         loadMap()
