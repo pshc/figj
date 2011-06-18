@@ -4,6 +4,7 @@ screenW = screenH = 0
 levelW = levelH = 0
 tileW = tileH = 16
 playerX = playerY = 20
+velX = velY = 0
 prog = null
 vertBuffer = coordBuffer = tileIndexBuffer = mapBuffer = null
 tileTex = null
@@ -13,6 +14,9 @@ canvas = timer = null
 spriteCount = 1
 noclip = false
 msgbox = document.getElementById('info')
+terminal = 5
+waterFriction = 0.9
+groundFriction = 0.9
 
 SPACE = 1
 WATER = 2
@@ -36,6 +40,7 @@ window.onkeydown = (event) ->
         when 78
             noclip = not noclip
             msgbox.textContent = if noclip then 'noclip' else 'clip'
+            velX = velY = 0
         when 27
             clearInterval timer
             gl.clear gl.COLOR_BUFFER_BIT
@@ -60,35 +65,49 @@ window.onkeyup = (event) ->
             return
     event.preventDefault()
 
+clamp = (min, val, max) -> Math.min(max, Math.max(min, val))
+
 update_state = ->
-    targetX = playerX
-    targetY = playerY
-    if keys.left then targetX -= 1
-    if keys.right then targetX += 1
-    if keys.up then targetY += 1
-    if keys.down then targetY -= 1
+    aX = aY = 0
+    if keys.left then aX = -1
+    if keys.right then aX = 1
+    if keys.up then aY = 1
+    if keys.down then aY = -1
     if noclip
-        playerX = targetX
-        playerY = targetY
-    else
-        if targetY > playerY
-            [x, y] = getPos()
-            if WATER != peekMap x, y then targetY = playerY
-        if noclip or hit_test targetX, targetY
-            playerX = targetX
-            playerY = targetY
-        else
-            if hit_test targetX, playerY then playerX = targetX
-            if hit_test playerX, targetY then playerY = targetY
+        playerX += aX
+        playerY += aY
+        return
+    [x, y] = getPos()
+    col = peekMap x, y
+    if col == SPACE
+        # fl- fling yourself through space
+        aY = -1
+        aX *= 0.5
+
+    velX = clamp(-terminal, velX + aX * 0.2, terminal)
+    velY = clamp(-terminal, velY + aY * 0.2, terminal)
+
+    # friction
+    if col == SPACE and peekMap(x, y-1) == GROUND
+        velX = clamp(-1, velX * groundFriction, 1)
+    else if col == WATER
+        # only apply water friction if not trying to move in that dir
+        if aX * velX <= 0 then velX *= waterFriction
+        if aY * velY <= 0 then velY *= waterFriction
+
+    if velX != 0 and hit_test playerX+velX, playerY then velX = 0
+    if velY != 0 and hit_test playerX+velX, playerY+velY then velY = 0
+    playerX += velX
+    playerY += velY
 
 hit_test = (x, y) ->
     x1 = Math.floor((x+2) / tileW)
     x2 = Math.floor((x+14) / tileW)
     y1 = Math.floor((y+2) / tileH)
     y2 = Math.floor((y+14) / tileH)
-    ok = (col) -> col != GROUND
-    (ok peekMap x1, y1) and (ok peekMap x2, y1) and (
-        ok peekMap x1, y2) and (ok peekMap x2, y2)
+    ok = (col) -> col == GROUND
+    (ok peekMap x1, y1) or (ok peekMap x2, y1) or (
+        ok peekMap x1, y2) or (ok peekMap x2, y2)
 
 draw = ->
     update_state()
@@ -105,7 +124,7 @@ draw = ->
     gl.drawElements gl.TRIANGLES, (levelW * levelH + spriteCount) * 6, gl.UNSIGNED_SHORT, 0
 
     # sprite
-    gl.uniform2f prog.offset, playerX, playerY
+    gl.uniform2f prog.offset, Math.round(playerX), Math.round(playerY)
     gl.drawElements gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0
 
 getShader = (id) ->
