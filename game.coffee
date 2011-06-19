@@ -61,6 +61,7 @@ addWater = (pos) ->
         log 'created body ', body.id
     water[pos] = body.id
     body.size += 1
+    body.asleep = false
     log 'new body size', body.size
 
 removeWater = (pos) ->
@@ -80,11 +81,30 @@ disrupt = (pos) ->
             waterBodies[id].asleep = false
 
 flowWater = ->
+    awake = []
     for id, body of waterBodies
-        if body.asleep
-            continue
-        log 'water', body, 'awake'
-        body.asleep = true
+        if not body.asleep
+            awake.push body.id
+            body.asleep = true
+    reflow = {}
+    needsLoad = false
+    for pos, id of water
+        if id in awake
+            [x, y] = JSON.parse("[#{pos}]")
+            if y > 0 and peekMap(x, y-1) == SPACE
+                log 'suspended water at', x, y
+                pokeMap x, y, SPACE
+                pokeMap x, y-1, WATER
+                addWater [x, y-1]
+                removeWater [x, y]
+                needsLoad = true
+                reflow[id] = true
+    for id of reflow
+        body = waterBodies[id]
+        if body
+            body.asleep = false
+    if needsLoad
+        loadMap()
 
 window.onkeydown = (event) ->
     key = event.which
