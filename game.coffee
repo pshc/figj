@@ -5,15 +5,22 @@ levelW = levelH = 0
 tileW = tileH = 16
 playerX = playerY = 20
 velX = velY = 0
+
 prog = null
 vertBuffer = coordBuffer = tileIndexBuffer = mapBuffer = null
 tileTex = null
+
 map = []
+water = {}
+waterBodies = {}
+bodyCtr = 0
+
 keys = up:0, down:0, left:0, right:0
 canvas = timer = null
 spriteCount = 1
 noclip = false
 msgbox = document.getElementById('info')
+
 terminal = 5
 waterFriction = 0.9
 groundFriction = 0.9
@@ -24,13 +31,66 @@ GROUND = 3
 
 getPos = -> [Math.round(playerX/tileW), Math.round(playerY/tileH)]
 
+addWater = (pos) ->
+    if water[pos]
+        return
+    [x, y] = pos
+    bodies = {}
+    check = (i, j) ->
+        id = water[[i,j]]
+        if id and id not of bodies
+            bodies[id] = 1
+    if x > 0 then check x-1, y
+    if x < levelW-1 then check x+1, y
+    if y > 0 then check x, y-1
+    if y < levelH-1 then check x, y+1
+    bodies = (parseInt(id) for id of bodies)
+    body = null
+    if bodies.length == 1
+        body = waterBodies[bodies[0]]
+    else if bodies.length > 1
+        log 'merge bodies ' + bodies
+        body = waterBodies[bodies.shift()]
+        # naive scan for now
+        for pos in Object.keys water
+            id = water[pos]
+            if id in bodies
+                water[pos] = body.id
+                body.size += 1
+        for dead in bodies
+            delete waterBodies[dead]
+    else
+        bodyCtr += 1
+        body = {id: bodyCtr, size: 0}
+        waterBodies[body.id] = body
+        log 'created body ', body.id
+    water[pos] = body.id
+    body.size += 1
+    log 'new body size', body.size
+
+removeWater = (pos) ->
+    id = water[pos]
+    if id
+        body = waterBodies[id]
+        delete water[pos]
+        body.size -= 1
+        if body.size == 0
+            log 'delete water body', id
+            delete waterBodies[id]
+
+
 window.onkeydown = (event) ->
     key = event.which
     if key >= 48 and key < 58
         # modify tile
         col = key - 48
-        [x, y] = getPos()
-        pokeMap(x, y, col)
+        pos = getPos()
+        [x, y] = pos
+        pokeMap x, y, col
+        if col == WATER
+            addWater pos
+        else
+            removeWater pos
         loadMap()
     else switch key
         when 37 then keys.left = 1
@@ -285,10 +345,39 @@ loadMap = ->
     gl.bufferData gl.ARRAY_BUFFER, new Float32Array(map), gl.DYNAMIC_DRAW
     gl.vertexAttribPointer prog.col, 1, gl.FLOAT, false, 0, 0
 
+fillWater = (body, x, y) ->
+    pos = [x, y]
+    if pos of water
+        return
+    if peekMap(x, y) != WATER
+        return
+    water[pos] = body.id
+    body.size += 1
+    if x > 0 then fillWater body, x-1, y
+    if x < levelW - 1 then fillWater body, x+1, y
+    if y > 0 then fillWater body, x, y-1
+    if y < levelH - 1 then fillWater body, x, y+1
+
+loadBodies = ->
+    water = {}
+    waterBodies = {}
+    for j in [0...levelH]
+        for i in [0...levelW]
+            col = peekMap i, j
+            if col == WATER
+                pos = [i, j]
+                if not (pos of water)
+                    bodyCtr += 1
+                    body = {size: 0, id: bodyCtr, locs: []}
+                    fillWater body, i, j
+                    waterBodies[body.id] = body
+                    log 'found body of size', body.size
+
 importMap = (data) ->
     for i in [0...levelW*levelH]
         x = (spriteCount + i) * 4
         map[x] = map[x+1] = map[x+2] = map[x+3] = data[i]
+    loadBodies()
 
 exportMap = ->
     map[i] for i in [spriteCount*4...(spriteCount+levelW*levelH)*4] by 4
