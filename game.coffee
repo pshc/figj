@@ -34,16 +34,11 @@ getPos = -> [Math.round(playerX/tileW), Math.round(playerY/tileH)]
 addWater = (pos) ->
     if water[pos]
         return
-    [x, y] = pos
     bodies = {}
-    check = (i, j) ->
+    withAdjacent pos, (i, j) ->
         id = water[[i,j]]
         if id and id not of bodies
             bodies[id] = 1
-    if x > 0 then check x-1, y
-    if x < levelW-1 then check x+1, y
-    if y > 0 then check x, y-1
-    if y < levelH-1 then check x, y+1
     bodies = (parseInt(id) for id of bodies)
     body = null
     if bodies.length == 1
@@ -61,7 +56,7 @@ addWater = (pos) ->
             delete waterBodies[dead]
     else
         bodyCtr += 1
-        body = {id: bodyCtr, size: 0}
+        body = {id: bodyCtr, size: 0, asleep: false}
         waterBodies[body.id] = body
         log 'created body ', body.id
     water[pos] = body.id
@@ -78,6 +73,18 @@ removeWater = (pos) ->
             log 'delete water body', id
             delete waterBodies[id]
 
+disrupt = (pos) ->
+    withAdjacent pos, (i, j) ->
+        id = water[[i,j]]
+        if id
+            waterBodies[id].asleep = false
+
+flowWater = ->
+    for id, body of waterBodies
+        if body.asleep
+            continue
+        log 'water', body, 'awake'
+        body.asleep = true
 
 window.onkeydown = (event) ->
     key = event.which
@@ -91,6 +98,7 @@ window.onkeydown = (event) ->
             addWater pos
         else
             removeWater pos
+        disrupt pos
         loadMap()
     else switch key
         when 37 then keys.left = 1
@@ -128,6 +136,8 @@ window.onkeyup = (event) ->
 clamp = (min, val, max) -> Math.min(max, Math.max(min, val))
 
 update_state = ->
+    flowWater()
+
     aX = aY = 0
     if keys.left then aX = -1
     if keys.right then aX = 1
@@ -345,6 +355,13 @@ loadMap = ->
     gl.bufferData gl.ARRAY_BUFFER, new Float32Array(map), gl.DYNAMIC_DRAW
     gl.vertexAttribPointer prog.col, 1, gl.FLOAT, false, 0, 0
 
+withAdjacent = (pos, func) ->
+    [x, y] = pos
+    if x > 0 then func x-1, y
+    if x < levelW - 1 then func x+1, y
+    if y > 0 then func x, y-1
+    if y < levelH - 1 then func x, y+1
+
 fillWater = (body, x, y) ->
     pos = [x, y]
     if pos of water
@@ -353,10 +370,7 @@ fillWater = (body, x, y) ->
         return
     water[pos] = body.id
     body.size += 1
-    if x > 0 then fillWater body, x-1, y
-    if x < levelW - 1 then fillWater body, x+1, y
-    if y > 0 then fillWater body, x, y-1
-    if y < levelH - 1 then fillWater body, x, y+1
+    withAdjacent pos, fillWater.bind null, body
 
 loadBodies = ->
     water = {}
@@ -368,7 +382,7 @@ loadBodies = ->
                 pos = [i, j]
                 if not (pos of water)
                     bodyCtr += 1
-                    body = {size: 0, id: bodyCtr, locs: []}
+                    body = {size: 0, id: bodyCtr, asleep: false}
                     fillWater body, i, j
                     waterBodies[body.id] = body
                     log 'found body of size', body.size
